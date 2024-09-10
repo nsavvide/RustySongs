@@ -1,8 +1,10 @@
+use crate::models::video::Video;
 use crate::tui::app::Pane;
 use crate::tui::ui::{playback::Playback, playlist::Playlist, queue::Queue, search_bar::SearchBar};
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
+use tui::widgets::{Block, Borders, List, ListItem};
 use tui::Frame;
 
 pub struct LayoutBuilder<'a> {
@@ -11,7 +13,8 @@ pub struct LayoutBuilder<'a> {
     playlist: Option<Playlist>,
     queue: Option<Queue>,
     playback: Option<Playback>,
-    selected_pane: Option<&'a Pane>, // Track the selected pane with a non-static lifetime
+    search_results: Option<Vec<Video>>, // Store search results here
+    selected_pane: Option<&'a Pane>,
 }
 
 impl<'a> LayoutBuilder<'a> {
@@ -22,6 +25,7 @@ impl<'a> LayoutBuilder<'a> {
             playlist: None,
             queue: None,
             playback: None,
+            search_results: None,
             selected_pane: None,
         }
     }
@@ -51,6 +55,11 @@ impl<'a> LayoutBuilder<'a> {
         self
     }
 
+    pub fn search_results(mut self, search_results: Option<Vec<Video>>) -> Self {
+        self.search_results = search_results;
+        self
+    }
+
     pub fn selected_pane(mut self, selected_pane: &'a Pane) -> Self {
         self.selected_pane = Some(selected_pane);
         self
@@ -72,7 +81,7 @@ impl<'a> LayoutBuilder<'a> {
         // Top section: Search bar
         if let Some(search_bar) = self.search_bar {
             let style = if matches!(self.selected_pane, Some(Pane::SearchBar)) {
-                Style::default().fg(Color::Yellow) // Highlight if selected
+                Style::default().fg(Color::Yellow)
             } else {
                 Style::default()
             };
@@ -111,6 +120,28 @@ impl<'a> LayoutBuilder<'a> {
                 Style::default()
             };
             playback.render_with_style(f, chunks[2], style);
+        }
+
+        // Display search results in an overlapping pane if available
+        if let Some(search_results) = &self.search_results {
+            let items: Vec<ListItem> = search_results
+                .iter()
+                .map(|video| {
+                    ListItem::new(format!(
+                        "{} - {}",
+                        video.snippet.title, video.snippet.channel_title
+                    ))
+                })
+                .collect();
+
+            let search_result_list = List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Search Results"),
+            );
+
+            let area = f.size(); // Render on top of the existing UI
+            f.render_widget(search_result_list, area);
         }
     }
 }

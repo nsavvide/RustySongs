@@ -5,19 +5,21 @@ pub struct SearchResponse {
     pub items: Vec<Video>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Video {
     pub id: VideoId,
     pub snippet: Snippet,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct VideoId {
     pub video_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Snippet {
     pub title: String,
     pub description: String,
+    #[serde(rename = "channelTitle")]
+    pub channel_title: String,
 }

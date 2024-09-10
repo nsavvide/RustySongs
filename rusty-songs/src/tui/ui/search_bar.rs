@@ -28,5 +28,12 @@ impl SearchBar {
 
         f.render_widget(search, area);
     }
-}
 
+    pub fn delete(&mut self) {
+        self.input.pop();
+    }
+
+    pub fn clear(&mut self) {
+        self.input.clear();
+    }
+}
