@@ -1,0 +1,19 @@
+[package]
+name = "rusty_songs"
+authors = ["niels <niels.i.savvides@gmail.com>"]
+license = "MIT"
+description = "Music player in terminal written in Rust for low resource consumption."
+repository = "https://github.com/nsavvide/RustySongs"
+homepage = "https://github.com/nsavvide/RustySongs"
+keywords = ["terminal", "tui", "music", "youtube"]
+categories = [
+    "command-line-interface",
+    "command-line-utilities",
+    "multimedia::audio",
+]
+readme = "./README.md"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
