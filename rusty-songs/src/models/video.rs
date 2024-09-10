@@ -13,7 +13,7 @@ pub struct Video {
 
 #[derive(Debug, Deserialize)]
 pub struct VideoId {
-    pub videoId: Option<String>,
+    pub video_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
