@@ -1,5 +1,6 @@
 use tui::backend::Backend;
 use tui::layout::Rect;
+use tui::style::Style;
 use tui::widgets::{Block, Borders, Row, Table};
 use tui::Frame;
 
@@ -13,7 +14,7 @@ impl Queue {
         Queue { songs }
     }
 
-    pub fn render<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
+    pub fn render_with_style<B: Backend>(&self, f: &mut Frame<B>, area: Rect, style: Style) {
         let rows: Vec<Row> = self
             .songs
             .iter()
@@ -29,6 +30,7 @@ impl Queue {
 
         let table = Table::new(rows)
             .block(Block::default().borders(Borders::ALL).title("Queue"))
+            .style(style)
             .widths(&[
                 tui::layout::Constraint::Percentage(10),
                 tui::layout::Constraint::Percentage(30),

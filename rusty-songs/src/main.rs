@@ -7,5 +7,5 @@ fn main() {
     dotenv().ok();
 
     let mut app = app::App::new();
-    app.run();
+    let _ = app.run();
 }

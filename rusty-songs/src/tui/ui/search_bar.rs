@@ -1,6 +1,6 @@
 use tui::backend::Backend;
 use tui::layout::Rect;
-use tui::style::{Color, Style};
+use tui::style::Style;
 use tui::text::Span;
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::Frame;
@@ -21,10 +21,12 @@ impl SearchBar {
         self.input.push(c);
     }
 
-    pub fn render<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
+    pub fn render_with_style<B: Backend>(&self, f: &mut Frame<B>, area: Rect, style: Style) {
         let search = Paragraph::new(Span::raw(format!("Search: {}", self.input)))
-            .block(Block::default().borders(Borders::ALL).title("Search"));
+            .block(Block::default().borders(Borders::ALL).title("Search"))
+            .style(style);
 
         f.render_widget(search, area);
     }
 }
+

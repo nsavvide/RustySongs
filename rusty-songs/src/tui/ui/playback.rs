@@ -20,14 +20,15 @@ impl Playback {
         }
     }
 
-    pub fn render<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
+    pub fn render_with_style<B: Backend>(&self, f: &mut Frame<B>, area: Rect, style: Style) {
         // Display song info
         let song_info = format!(
             "Playing: {} - {}/{}",
             self.current_song, self.current_time, self.total_time
         );
         let paragraph = Paragraph::new(song_info)
-            .block(Block::default().borders(Borders::ALL).title("Now Playing"));
+            .block(Block::default().borders(Borders::ALL).title("Now Playing"))
+            .style(style);
 
         f.render_widget(paragraph, area);
 

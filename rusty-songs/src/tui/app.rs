@@ -9,11 +9,20 @@ use std::io;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
+#[derive(Clone)]
+pub enum Pane {
+    SearchBar,
+    Playlist,
+    Queue,
+    Playback,
+}
+
 pub struct App {
     search_bar: SearchBar,
     playlist: Playlist,
     queue: Queue,
     playback: Playback,
+    selected_pane: Pane,
 }
 
 impl App {
@@ -47,6 +56,7 @@ impl App {
                 ),
             ]),
             playback: Playback::new("Song 1", 100, 300),
+            selected_pane: Pane::SearchBar, // Default to the search bar
         }
     }
 
@@ -59,10 +69,13 @@ impl App {
 
         // Event loop for rendering and event handling
         loop {
+            let selected_pane = &self.selected_pane; // Pass reference of selected pane with non-static lifetime
+
             terminal.draw(|f| {
                 let size = f.size();
                 LayoutBuilder::new()
                     .frame(size)
+                    .selected_pane(selected_pane) // Pass the reference to selected pane
                     .search_bar(self.search_bar.clone())
                     .playlist(self.playlist.clone())
                     .queue(self.queue.clone())
@@ -70,9 +83,21 @@ impl App {
                     .build(f);
             })?;
 
-            // Handle key events to exit or update the search bar
+            // Handle key events for selecting panes or exiting
             if let event::Event::Key(key) = event::read()? {
                 match key.code {
+                    KeyCode::Char('0') => {
+                        self.selected_pane = Pane::SearchBar;
+                    }
+                    KeyCode::Char('1') => {
+                        self.selected_pane = Pane::Playlist;
+                    }
+                    KeyCode::Char('2') => {
+                        self.selected_pane = Pane::Queue;
+                    }
+                    KeyCode::Char('3') => {
+                        self.selected_pane = Pane::Playback;
+                    }
                     KeyCode::Char('q') => {
                         disable_raw_mode()?;
                         break;

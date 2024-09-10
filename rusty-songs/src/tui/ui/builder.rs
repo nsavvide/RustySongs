@@ -1,17 +1,20 @@
+use crate::tui::app::Pane;
 use crate::tui::ui::{playback::Playback, playlist::Playlist, queue::Queue, search_bar::SearchBar};
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::style::{Color, Style};
 use tui::Frame;
 
-pub struct LayoutBuilder {
+pub struct LayoutBuilder<'a> {
     frame: Option<Rect>,
     search_bar: Option<SearchBar>,
     playlist: Option<Playlist>,
     queue: Option<Queue>,
     playback: Option<Playback>,
+    selected_pane: Option<&'a Pane>, // Track the selected pane with a non-static lifetime
 }
 
-impl LayoutBuilder {
+impl<'a> LayoutBuilder<'a> {
     pub fn new() -> Self {
         LayoutBuilder {
             frame: None,
@@ -19,6 +22,7 @@ impl LayoutBuilder {
             playlist: None,
             queue: None,
             playback: None,
+            selected_pane: None,
         }
     }
 
@@ -47,6 +51,11 @@ impl LayoutBuilder {
         self
     }
 
+    pub fn selected_pane(mut self, selected_pane: &'a Pane) -> Self {
+        self.selected_pane = Some(selected_pane);
+        self
+    }
+
     pub fn build<B: Backend>(self, f: &mut Frame<B>) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -62,7 +71,12 @@ impl LayoutBuilder {
 
         // Top section: Search bar
         if let Some(search_bar) = self.search_bar {
-            search_bar.render(f, chunks[0]);
+            let style = if matches!(self.selected_pane, Some(Pane::SearchBar)) {
+                Style::default().fg(Color::Yellow) // Highlight if selected
+            } else {
+                Style::default()
+            };
+            search_bar.render_with_style(f, chunks[0], style);
         }
 
         // Middle section: Split into playlist and queue
@@ -72,16 +86,31 @@ impl LayoutBuilder {
             .split(chunks[1]);
 
         if let Some(playlist) = self.playlist {
-            playlist.render(f, top_chunks[0]);
+            let style = if matches!(self.selected_pane, Some(Pane::Playlist)) {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default()
+            };
+            playlist.render_with_style(f, top_chunks[0], style);
         }
 
         if let Some(queue) = self.queue {
-            queue.render(f, top_chunks[1]);
+            let style = if matches!(self.selected_pane, Some(Pane::Queue)) {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default()
+            };
+            queue.render_with_style(f, top_chunks[1], style);
         }
 
         // Bottom section: Playback progress
         if let Some(playback) = self.playback {
-            playback.render(f, chunks[2]);
+            let style = if matches!(self.selected_pane, Some(Pane::Playback)) {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default()
+            };
+            playback.render_with_style(f, chunks[2], style);
         }
     }
 }
