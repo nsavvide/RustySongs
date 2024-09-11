@@ -13,6 +13,7 @@ pub struct Video {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct VideoId {
+    #[serde(rename = "videoId")]
     pub video_id: Option<String>,
 }
 
