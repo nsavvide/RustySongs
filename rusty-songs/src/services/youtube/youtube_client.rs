@@ -1,6 +1,7 @@
 use reqwest::Client;
 use std::env;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct YoutubeClient {
     pub api_key: String,

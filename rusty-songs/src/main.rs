@@ -2,11 +2,16 @@ extern crate dotenv;
 
 use dotenv::dotenv;
 use rusty_songs::tui::app;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-#[tokio::main] // Use Tokio runtime to handle async execution
+#[tokio::main]
 async fn main() {
     dotenv().ok();
 
-    let mut app = app::App::new();
-    let _ = app.run().await; // Await the async run method
+    let app = Arc::new(Mutex::new(app::App::new()));
+
+    if let Err(e) = app::App::run(app.clone()).await {
+        eprintln!("Application error: {}", e);
+    }
 }

@@ -2,7 +2,8 @@ use crate::models::video::{SearchResponse, Video};
 use crate::services::youtube::youtube_client::YoutubeClient;
 use std::env;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct YoutubeRequestBuilder {
     query: String,
@@ -30,10 +31,10 @@ impl YoutubeRequestBuilder {
             env::var("YOUTUBE_API_URL").expect("YOUTUBE_API_URL must be set"),
             self.query,
             self.max_results,
-            self.api_client.lock().unwrap().api_key
+            self.api_client.lock().await.api_key
         );
 
-        let client = &self.api_client.lock().unwrap().client;
+        let client = &self.api_client.lock().await.client;
         let response: SearchResponse = client.get(&url).send().await?.json().await?;
 
         Ok(response.items)
