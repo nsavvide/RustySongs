@@ -93,7 +93,12 @@ impl Playlist {
             .map(|song| {
                 let duration = format_duration(song.duration);
                 let spans = Spans::from(vec![
-                    Span::raw(song.title.clone()),
+                    Span::raw(
+                        song.title
+                            .strip_suffix(".mp3")
+                            .unwrap_or(&song.title)
+                            .to_string(),
+                    ),
                     Span::raw(format!(" ({})", duration)),
                 ]);
                 ListItem::new(spans)
