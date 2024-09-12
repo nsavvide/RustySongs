@@ -46,29 +46,8 @@ impl App {
     pub fn new() -> Self {
         App {
             search_bar: SearchBar::new(),
-
             playlist: Playlist::new(),
-
-            queue: Queue::new(vec![
-                (
-                    String::from("4m 52s"),
-                    String::from("Artist A"),
-                    String::from("Song 1"),
-                    String::from("Album X"),
-                ),
-                (
-                    String::from("3m 30s"),
-                    String::from("Artist B"),
-                    String::from("Song 2"),
-                    String::from("Album Y"),
-                ),
-                (
-                    String::from("5m 15s"),
-                    String::from("Artist C"),
-                    String::from("Song 3"),
-                    String::from("Album Z"),
-                ),
-            ]),
+            queue: Queue::new(vec![]),
             youtube_service: YoutubeService::new(),
             search_results: None,
             playback: Playback::new("Song 1", 100, 300),
@@ -306,6 +285,27 @@ impl App {
                             }
                         }
                         KeyCode::Char('d')
+                            if matches!(app.lock().await.selected_pane, Pane::Playlist) =>
+                        {
+                            let mut app_locked = app_clone.lock().await;
+                            if app_locked.selected_playlist_song_index
+                                < app_locked.playlist.songs.len()
+                            {
+                                let _index = app_locked.selected_playlist_song_index;
+
+                                app_locked.playlist.remove_song(_index);
+
+                                if app_locked.playlist.songs.is_empty() {
+                                    app_locked.selected_playlist_song_index = 0;
+                                } else if app_locked.selected_playlist_song_index
+                                    >= app_locked.playlist.songs.len()
+                                {
+                                    app_locked.selected_playlist_song_index =
+                                        app_locked.playlist.songs.len() - 1;
+                                }
+                            }
+                        }
+                        KeyCode::Char('a')
                             if matches!(app.lock().await.selected_pane, Pane::Playlist) =>
                         {
                             let mut app_locked = app_clone.lock().await;

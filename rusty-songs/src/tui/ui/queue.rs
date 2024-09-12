@@ -1,41 +1,59 @@
 use tui::backend::Backend;
 use tui::layout::Rect;
-use tui::style::Style;
+use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Row, Table};
 use tui::Frame;
 
+use crate::models::song::Song;
+use crate::utils::format::format_duration;
+
 #[derive(Clone)]
 pub struct Queue {
-    pub songs: Vec<(String, String, String, String)>, // (Duration, Artist, Title, Album)
+    pub songs: Vec<Song>,
 }
 
 impl Queue {
-    pub fn new(songs: Vec<(String, String, String, String)>) -> Self {
+    pub fn new(songs: Vec<Song>) -> Self {
         Queue { songs }
     }
 
-    pub fn render_with_style<B: Backend>(&self, f: &mut Frame<B>, area: Rect, style: Style) {
+    pub fn render_with_style<B: Backend>(
+        &self,
+        f: &mut Frame<B>,
+        area: Rect,
+        style: Style,
+        selected_index: Option<usize>,
+        theme: &ColorTheme,
+    ) {
+        // Create rows for each song
         let rows: Vec<Row> = self
             .songs
             .iter()
-            .map(|(duration, artist, title, album)| {
-                Row::new(vec![
-                    duration.clone(),
-                    artist.clone(),
-                    title.clone(),
-                    album.clone(),
-                ])
+            .enumerate()
+            .map(|(i, song)| {
+                let order = format!("{}", i + 1); // Order starts from 1
+                let title = song
+                    .title
+                    .strip_suffix(".mp3")
+                    .unwrap_or(&song.title)
+                    .to_string(); // Remove ".mp3" suffix if present
+                let duration = format_duration(song.duration); // Format the duration
+
+                Row::new(vec![order, title, duration]).style(if Some(i) == selected_index {
+                    Style::default().fg(theme.highlight) // Highlight the selected row
+                } else {
+                    Style::default().fg(theme.text) // Default text color for other rows
+                })
             })
             .collect();
 
         let table = Table::new(rows)
-            .block(Block::default().borders(Borders::ALL).title("Queue [2]"))
-            .style(style)
+            .block(Block::default().borders(Borders::ALL).title("Queue")) // Set a title and borders
+            .style(style) // Apply the passed-in style
             .widths(&[
-                tui::layout::Constraint::Percentage(10),
-                tui::layout::Constraint::Percentage(30),
-                tui::layout::Constraint::Percentage(30),
-                tui::layout::Constraint::Percentage(30),
+                tui::layout::Constraint::Percentage(10), // Order
+                tui::layout::Constraint::Percentage(60), // Title
+                tui::layout::Constraint::Percentage(30), // Duration
             ]);
 
         f.render_widget(table, area);
