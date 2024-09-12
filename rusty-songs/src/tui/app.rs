@@ -44,12 +44,9 @@ impl App {
     pub fn new() -> Self {
         App {
             search_bar: SearchBar::new(),
-            playlist: Playlist::new(vec![
-                String::from("classical"),
-                String::from("tmp"),
-                String::from("yiyang"),
-                String::from("misc"),
-            ]),
+
+            playlist: Playlist::new(),
+
             queue: Queue::new(vec![
                 (
                     String::from("4m 52s"),
@@ -74,6 +71,7 @@ impl App {
             search_results: None,
             playback: Playback::new("Song 1", 100, 300),
             selected_pane: Pane::SearchBar, // Default to the search bar
+
             selected_video: None,
             selected_search_index: 0,
             notification: None,
@@ -100,7 +98,7 @@ impl App {
     pub async fn run(app: Arc<Mutex<App>>) -> Result<(), io::Error> {
         // Initial setup (lock only once for enabling raw mode)
         {
-            let mut app_locked = app.lock().await;
+            let _app_locked = app.lock().await;
             enable_raw_mode()?;
             let stdout = io::stdout();
             execute!(&stdout, Clear(ClearType::All))?;
@@ -115,6 +113,9 @@ impl App {
                 // Lock app once for rendering logic only
                 let mut app_locked = app.lock().await;
                 app_locked.check_notification_timeout();
+
+                // Load playlist
+                app_locked.playlist.load_playlist();
 
                 terminal.draw(|f| {
                     let size = f.size();
@@ -232,7 +233,7 @@ impl App {
                                         let mut app_locked = app_clone_inner.lock().await;
                                         match app_locked
                                             .youtube_service
-                                            .process_video_to_audio(&video_id) // Pass video_id as &str
+                                            .process_video_to_audio(&video_id, &video.snippet.title) // Pass video_id as &str
                                             .await
                                         {
                                             Ok(_) => {

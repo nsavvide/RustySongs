@@ -1,9 +1,11 @@
 use crate::models::video::Video;
 use crate::services::youtube::youtube_client::YoutubeClient;
 use crate::services::youtube::youtube_request_builder::YoutubeRequestBuilder;
-use crate::utils::logger::log_to_file;
 use crate::utils::video_tools::{compress_mp3, download_video_as_mp3};
+use std::env;
 use std::error::Error;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -30,16 +32,43 @@ impl YoutubeService {
         Ok(videos)
     }
 
-    pub async fn process_video_to_audio(&self, video_id: &str) -> Result<(), Box<dyn Error>> {
-        log_to_file("Processing video to audio").await;
-        download_video_as_mp3(video_id).await?;
+    pub async fn process_video_to_audio(
+        &self,
+        video_id: &str,
+        video_title: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let music_dir = env::var("MUSIC_DIR").unwrap_or_else(|_| "music".to_string());
 
-        let input_mp3 = format!("{}.mp3", video_id); // Assuming the MP3 is saved as video_id.mp3
-        let output_mp3 = format!("{}_compressed.mp3", video_id); // Output compressed MP3
+        // Step 1: Download the video and save as MP3
+        download_video_as_mp3(video_id, video_title).await?;
 
-        compress_mp3(&input_mp3, &output_mp3).await?;
+        // Define the file paths within MUSIC_DIR
+        let original_file_name = format!("{}.mp3", video_title);
+        let temp_file_name = format!("{}.temp.mp3", video_title); // Temporary file for compression
 
-        println!("Successfully downloaded and compressed the MP3.");
+        let original_path = PathBuf::from(&music_dir).join(&original_file_name);
+        let temp_path = PathBuf::from(&music_dir).join(&temp_file_name);
+
+        println!("Original path: {:?}", original_path);
+        println!("Temp path: {:?}", temp_path);
+
+        // Step 2: Compress the MP3 to a temporary file
+        compress_mp3(original_path.to_str().unwrap(), temp_path.to_str().unwrap()).await?;
+
+        // Step 3: Delete the original file
+        if let Err(e) = fs::remove_file(&original_path) {
+            eprintln!("Failed to remove original file: {}", e);
+            return Err(Box::new(e));
+        }
+
+        // Step 4: Rename the temporary file to the original name
+        if let Err(e) = fs::rename(&temp_path, &original_path) {
+            eprintln!("Failed to rename temp file to original: {}", e);
+            return Err(Box::new(e));
+        }
+
+        println!("File compressed and renamed successfully.");
+
         Ok(())
     }
 }

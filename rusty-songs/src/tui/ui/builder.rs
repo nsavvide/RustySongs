@@ -91,82 +91,73 @@ impl<'a> LayoutBuilder<'a> {
 
     // Build the layout with the provided components
     pub fn build<B: Backend>(self, f: &mut Frame<B>) {
-        // Split the screen into three sections: top, middle, and bottom
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(
-                [
-                    Constraint::Percentage(10), // Top section: Search bar and notification
-                    Constraint::Percentage(65), // Middle section: Playlist and Queue
-                    Constraint::Percentage(25), // Bottom section: Search results
-                ]
-                .as_ref(),
-            )
+        // Split the screen into two vertical halves
+        let main_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()) // Left and right halves
             .split(self.frame.unwrap());
 
-        // Render the Search Bar
+        // Split the left side into search bar and playlist
+        let left_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref()) // Top: Search Bar, Bottom: Playlist
+            .split(main_chunks[0]);
+
+        // Split the right side into queue and playback
+        let right_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref()) // Top: Queue, Bottom: Playback
+            .split(main_chunks[1]);
+
+        // Render the Search Bar (top left, half the screen width)
         if let Some(search_bar) = self.search_bar {
             let style = if matches!(self.selected_pane, Some(Pane::SearchBar)) {
                 Style::default().fg(Color::Yellow)
             } else {
                 Style::default()
             };
-            search_bar.render_with_style(f, chunks[0], style);
+            search_bar.render_with_style(f, left_chunks[0], style);
         }
 
-        // Render the notification in the top-right corner if it exists
-        if let Some(notification) = self.notification {
-            let style = notification.style(); // Get the appropriate style based on notification type
-            let message = &notification.message;
-
-            // Create a Rect to position the notification in the top-right corner
-            let notification_chunk = Rect {
-                x: chunks[0].x + chunks[0].width - message.len() as u16 - 2, // Right-align the notification
-                y: chunks[0].y,
-                width: message.len() as u16 + 2,
-                height: 1,
-            };
-
-            // Render the notification message with borders
-            f.render_widget(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Notification")
-                    .style(style),
-                notification_chunk,
-            );
-            f.render_widget(
-                Paragraph::new(message.as_ref()).style(style),
-                notification_chunk,
-            );
-        }
-
-        // Middle section: Split into playlist and queue
-        let top_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-            .split(chunks[1]);
-
+        // Render the Playlist (below the search bar, taking the rest of the left side)
         if let Some(playlist) = self.playlist {
             let style = if matches!(self.selected_pane, Some(Pane::Playlist)) {
-                Style::default().fg(Color::Yellow)
+                Style::default().fg(Color::Green) // Playlist items will have a different color
             } else {
                 Style::default()
             };
-            playlist.render_with_style(f, top_chunks[0], style);
+            playlist.render_with_style(f, left_chunks[1], style);
         }
 
+        // Render the Queue (top right, half the screen width)
         if let Some(queue) = self.queue {
             let style = if matches!(self.selected_pane, Some(Pane::Queue)) {
                 Style::default().fg(Color::Yellow)
             } else {
                 Style::default()
             };
-            queue.render_with_style(f, top_chunks[1], style);
+            queue.render_with_style(f, right_chunks[0], style);
         }
 
-        // Bottom section: Search results
+        // Render the Playback section (bottom right, below the queue)
+        if let Some(playback) = self.playback {
+            let style = if matches!(self.selected_pane, Some(Pane::Playback)) {
+                Style::default().fg(Color::Cyan) // Playback has its own color
+            } else {
+                Style::default()
+            };
+            playback.render_with_style(f, right_chunks[1], style);
+        }
+
+        // Render the Search Results as a Floating Overlay (move it down and add background color)
         if let Some(search_results) = &self.search_results {
+            let search_overlay = Rect {
+                x: 2,                                   // Padding from the left edge
+                y: 5,                                   // Bring it down a bit (set y to 5)
+                width: self.frame.unwrap().width - 4,   // Slightly smaller than full width
+                height: self.frame.unwrap().height / 4, // Take 1/4 of the screen height
+            };
+
             let items: Vec<ListItem> = search_results
                 .iter()
                 .enumerate()
@@ -184,11 +175,12 @@ impl<'a> LayoutBuilder<'a> {
             let search_result_list = List::new(items).block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Search Results"),
+                    .title("Search Results")
+                    .style(Style::default().bg(Color::Black)), // Set background to black for better visibility
             );
 
-            f.render_widget(search_result_list, chunks[2]); // Render in the bottom section
+            // Render the search result overlay on the top of the TUI
+            f.render_widget(search_result_list, search_overlay);
         }
     }
 }
-
