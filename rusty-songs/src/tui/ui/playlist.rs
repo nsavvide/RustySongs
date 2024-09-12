@@ -1,4 +1,5 @@
 use crate::models::song::Song;
+use crate::tui::ui::color_theme::ColorTheme;
 use crate::utils::format::format_duration;
 use std::env;
 use std::fs;
@@ -94,6 +95,8 @@ impl Playlist {
         style: Style,
         selected_index: usize,
     ) {
+        let theme = ColorTheme::catppuccin_mocha();
+
         let items: Vec<ListItem> = self
             .songs
             .iter()
@@ -107,13 +110,16 @@ impl Playlist {
                             .unwrap_or(&song.title)
                             .to_string(),
                     ),
-                    Span::raw(format!(" ({})", duration)),
+                    Span::styled(
+                        format!(" [{}]", duration),
+                        Style::default().fg(theme.accent2),
+                    ),
                 ]);
 
                 if i == selected_index {
-                    ListItem::new(spans).style(Style::default().fg(Color::Yellow))
+                    ListItem::new(spans).style(Style::default().fg(theme.highlight))
                 } else {
-                    ListItem::new(spans)
+                    ListItem::new(spans).style(Style::default().fg(theme.text))
                 }
             })
             .collect();
