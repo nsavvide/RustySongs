@@ -1,12 +1,13 @@
 use crate::models::video::Video;
 use crate::tui::app::Pane;
-use crate::tui::ui::notification::{Notification, NotificationType};
+use crate::tui::ui::color_theme::ColorTheme;
+use crate::tui::ui::notification::Notification;
 use crate::tui::ui::{playback::Playback, playlist::Playlist, queue::Queue, search_bar::SearchBar};
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, List, ListItem, Paragraph};
-use tui::Frame; // Assuming Notification is already defined
+use tui::widgets::{Block, Borders, List, ListItem};
+use tui::Frame;
 
 pub struct LayoutBuilder<'a> {
     frame: Option<Rect>,
@@ -14,12 +15,13 @@ pub struct LayoutBuilder<'a> {
     playlist: Option<Playlist>,
     queue: Option<Queue>,
     playback: Option<Playback>,
-    search_results: Option<Vec<Video>>, // Store search results here
+    search_results: Option<Vec<Video>>,
     selected_pane: Option<&'a Pane>,
     selected_search_index: Option<usize>,
-    selected_playlist_song_index: usize, // Add selected playlist song index
-    notification: Option<&'a Notification>, // Add notification field
+    selected_playlist_song_index: usize,
+    notification: Option<&'a Notification>,
     downloading_video_index: Option<usize>,
+    theme: ColorTheme,
 }
 
 impl<'a> LayoutBuilder<'a> {
@@ -36,6 +38,7 @@ impl<'a> LayoutBuilder<'a> {
             selected_playlist_song_index: 0,
             downloading_video_index: None,
             notification: None,
+            theme: ColorTheme::catppuccin_mocha(),
         }
     }
 
@@ -112,36 +115,36 @@ impl<'a> LayoutBuilder<'a> {
 
         if let Some(search_bar) = self.search_bar {
             let style = if matches!(self.selected_pane, Some(Pane::SearchBar)) {
-                Style::default().fg(Color::Yellow)
+                Style::default().fg(self.theme.accent2)
             } else {
-                Style::default()
+                Style::default().fg(self.theme.text)
             };
             search_bar.render_with_style(f, left_chunks[0], style);
         }
 
         if let Some(playlist) = self.playlist.as_ref() {
             let style = if matches!(self.selected_pane, Some(Pane::Playlist)) {
-                Style::default().fg(Color::Green) // Playlist items will have a different color
+                Style::default().fg(self.theme.accent1)
             } else {
-                Style::default()
+                Style::default().fg(self.theme.text)
             };
             playlist.render_with_style(f, left_chunks[1], style, self.selected_playlist_song_index);
         }
 
         if let Some(queue) = self.queue {
             let style = if matches!(self.selected_pane, Some(Pane::Queue)) {
-                Style::default().fg(Color::Yellow)
+                Style::default().fg(self.theme.accent2)
             } else {
-                Style::default()
+                Style::default().fg(self.theme.text)
             };
             queue.render_with_style(f, right_chunks[0], style);
         }
 
         if let Some(playback) = self.playback {
             let style = if matches!(self.selected_pane, Some(Pane::Playback)) {
-                Style::default().fg(Color::Cyan) // Playback has its own color
+                Style::default().fg(self.theme.accent2) // Playback has its own color
             } else {
-                Style::default()
+                Style::default().fg(self.theme.text)
             };
             playback.render_with_style(f, right_chunks[1], style);
         }
@@ -188,19 +191,23 @@ impl<'a> LayoutBuilder<'a> {
 
                     // Highlight the selected search result
                     if Some(i) == self.selected_search_index {
-                        ListItem::new(content).style(Style::default().fg(Color::Yellow))
+                        ListItem::new(content).style(Style::default().fg(self.theme.accent2))
                     } else {
-                        ListItem::new(content)
+                        ListItem::new(content).style(Style::default().fg(self.theme.text))
                     }
                 })
                 .collect();
 
-            // Create the search result list with a border and render it
             let search_result_list = List::new(items).block(
                 Block::default()
                     .borders(Borders::ALL)
                     .title("Search Results")
-                    .style(Style::default().bg(Color::Black)), // Set background to black for better visibility
+                    .style(
+                        Style::default()
+                            .bg(self.theme.background)
+                            .fg(self.theme.text),
+                    )
+                    .border_style(Style::default().fg(self.theme.accent1)),
             );
 
             f.render_widget(search_result_list, search_overlay);
