@@ -29,7 +29,7 @@ impl Queue {
             .collect();
 
         let table = Table::new(rows)
-            .block(Block::default().borders(Borders::ALL).title("Queue"))
+            .block(Block::default().borders(Borders::ALL).title("Queue [2]"))
             .style(style)
             .widths(&[
                 tui::layout::Constraint::Percentage(10),

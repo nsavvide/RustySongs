@@ -23,7 +23,7 @@ impl SearchBar {
 
     pub fn render_with_style<B: Backend>(&self, f: &mut Frame<B>, area: Rect, style: Style) {
         let search = Paragraph::new(Span::raw(format!("Search: {}", self.input)))
-            .block(Block::default().borders(Borders::ALL).title("Search"))
+            .block(Block::default().borders(Borders::ALL).title("Search [0]"))
             .style(style);
 
         f.render_widget(search, area);
