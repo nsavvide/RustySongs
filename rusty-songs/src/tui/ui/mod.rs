@@ -1,4 +1,5 @@
 pub mod builder;
+pub mod color_theme;
 pub mod notification;
 pub mod playback;
 pub mod playlist;
