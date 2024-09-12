@@ -143,18 +143,22 @@ impl App {
                         KeyCode::Char('0') => {
                             let mut app_locked = app_clone.lock().await;
                             app_locked.selected_pane = Pane::SearchBar;
+                            app_locked.search_results = None; // Clear search results when moving away
                         }
                         KeyCode::Char('1') => {
                             let mut app_locked = app_clone.lock().await;
                             app_locked.selected_pane = Pane::Playlist;
+                            app_locked.search_results = None; // Clear search results when moving away
                         }
                         KeyCode::Char('2') => {
                             let mut app_locked = app_clone.lock().await;
                             app_locked.selected_pane = Pane::Queue;
+                            app_locked.search_results = None; // Clear search results when moving away
                         }
                         KeyCode::Char('3') => {
                             let mut app_locked = app_clone.lock().await;
                             app_locked.selected_pane = Pane::Playback;
+                            app_locked.search_results = None; // Clear search results when moving away
                         }
                         KeyCode::Char('q') => {
                             disable_raw_mode().unwrap();
