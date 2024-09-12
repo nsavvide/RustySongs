@@ -10,6 +10,7 @@ use symphonia::core::probe::Hint;
 use symphonia::default::get_probe;
 use tui::backend::Backend;
 use tui::layout::Rect;
+use tui::style::Color;
 use tui::style::Style;
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem};
@@ -17,7 +18,7 @@ use tui::Frame;
 
 #[derive(Clone)]
 pub struct Playlist {
-    songs: Vec<Song>,
+    pub songs: Vec<Song>,
 }
 
 impl Playlist {
@@ -86,11 +87,18 @@ impl Playlist {
         Some(total_duration)
     }
 
-    pub fn render_with_style<B: Backend>(&self, f: &mut Frame<B>, area: Rect, style: Style) {
+    pub fn render_with_style<B: Backend>(
+        &self,
+        f: &mut Frame<B>,
+        area: Rect,
+        style: Style,
+        selected_index: usize,
+    ) {
         let items: Vec<ListItem> = self
             .songs
             .iter()
-            .map(|song| {
+            .enumerate() // Enumerate to track the index of each song
+            .map(|(i, song)| {
                 let duration = format_duration(song.duration);
                 let spans = Spans::from(vec![
                     Span::raw(
@@ -101,7 +109,12 @@ impl Playlist {
                     ),
                     Span::raw(format!(" ({})", duration)),
                 ]);
-                ListItem::new(spans)
+
+                if i == selected_index {
+                    ListItem::new(spans).style(Style::default().fg(Color::Yellow))
+                } else {
+                    ListItem::new(spans)
+                }
             })
             .collect();
 
@@ -110,5 +123,20 @@ impl Playlist {
             .style(style);
 
         f.render_widget(playlist, area);
+    }
+
+    pub fn remove_song(&mut self, index: usize) {
+        if index < self.songs.len() {
+            let song_title = self.songs[index].title.clone();
+
+            self.songs.remove(index);
+
+            let music_dir = std::env::var("MUSIC_DIR").unwrap_or_else(|_| "music".to_string());
+            let file_path = PathBuf::from(music_dir).join(song_title);
+
+            if let Err(e) = fs::remove_file(&file_path) {
+                eprintln!("Failed to delete file {}: {}", file_path.display(), e);
+            }
+        }
     }
 }

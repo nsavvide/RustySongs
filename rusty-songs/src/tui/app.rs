@@ -36,6 +36,7 @@ pub struct App {
     search_results: Option<Vec<Video>>,
     selected_video: Option<Video>,
     selected_search_index: usize,
+    selected_playlist_song_index: usize,
     notification: Option<Notification>,
     notification_timeout: Duration,
 }
@@ -74,6 +75,7 @@ impl App {
 
             selected_video: None,
             selected_search_index: 0,
+            selected_playlist_song_index: 0,
             notification: None,
             notification_timeout: Duration::from_secs(5),
         }
@@ -128,6 +130,7 @@ impl App {
                         .playback(app_locked.playback.clone())
                         .search_results(app_locked.search_results.clone())
                         .selected_search_index(app_locked.selected_search_index)
+                        .selected_playlist_song_index(app_locked.selected_playlist_song_index)
                         .notification(app_locked.notification.as_ref())
                         .build(f);
                 })?;
@@ -276,6 +279,45 @@ impl App {
                             let mut app_locked = app_clone.lock().await;
                             app_locked.selected_pane = Pane::SearchBar;
                             app_locked.search_results = None;
+                        }
+                        // Playlist Controls
+                        KeyCode::Char('j')
+                            if matches!(app.lock().await.selected_pane, Pane::Playlist) =>
+                        {
+                            let mut app_locked = app_clone.lock().await;
+                            let playlist_len = app_locked.playlist.songs.len(); // Assuming playlist has a 'songs' field
+                            app_locked.selected_playlist_song_index =
+                                (app_locked.selected_playlist_song_index + 1).min(playlist_len - 1);
+                        }
+
+                        KeyCode::Char('k')
+                            if matches!(app.lock().await.selected_pane, Pane::Playlist) =>
+                        {
+                            let mut app_locked = app_clone.lock().await;
+                            if app_locked.selected_playlist_song_index > 0 {
+                                app_locked.selected_playlist_song_index -= 1;
+                            }
+                        }
+                        KeyCode::Char('d')
+                            if matches!(app.lock().await.selected_pane, Pane::Playlist) =>
+                        {
+                            let mut app_locked = app_clone.lock().await;
+                            if app_locked.selected_playlist_song_index
+                                < app_locked.playlist.songs.len()
+                            {
+                                let _index = app_locked.selected_playlist_song_index;
+
+                                app_locked.playlist.remove_song(_index);
+
+                                if app_locked.playlist.songs.is_empty() {
+                                    app_locked.selected_playlist_song_index = 0;
+                                } else if app_locked.selected_playlist_song_index
+                                    >= app_locked.playlist.songs.len()
+                                {
+                                    app_locked.selected_playlist_song_index =
+                                        app_locked.playlist.songs.len() - 1;
+                                }
+                            }
                         }
                         _ => {}
                     }
