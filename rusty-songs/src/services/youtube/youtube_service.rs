@@ -49,9 +49,6 @@ impl YoutubeService {
         let original_path = PathBuf::from(&music_dir).join(&original_file_name);
         let temp_path = PathBuf::from(&music_dir).join(&temp_file_name);
 
-        println!("Original path: {:?}", original_path);
-        println!("Temp path: {:?}", temp_path);
-
         // Step 2: Compress the MP3 to a temporary file
         compress_mp3(original_path.to_str().unwrap(), temp_path.to_str().unwrap()).await?;
 
@@ -66,8 +63,6 @@ impl YoutubeService {
             eprintln!("Failed to rename temp file to original: {}", e);
             return Err(Box::new(e));
         }
-
-        println!("File compressed and renamed successfully.");
 
         Ok(())
     }
