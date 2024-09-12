@@ -17,6 +17,7 @@ pub struct LayoutBuilder<'a> {
     search_results: Option<Vec<Video>>, // Store search results here
     selected_pane: Option<&'a Pane>,
     selected_search_index: Option<usize>,
+    selected_playlist_song_index: usize, // Add selected playlist song index
     notification: Option<&'a Notification>, // Add notification field
 }
 
@@ -31,85 +32,77 @@ impl<'a> LayoutBuilder<'a> {
             search_results: None,
             selected_pane: None,
             selected_search_index: None,
-            notification: None, // Initially no notification
+            selected_playlist_song_index: 0,
+            notification: None,
         }
     }
 
-    // Builder method to set the frame (size of the layout)
     pub fn frame(mut self, frame: Rect) -> Self {
         self.frame = Some(frame);
         self
     }
 
-    // Builder method to set the search bar
     pub fn search_bar(mut self, search_bar: SearchBar) -> Self {
         self.search_bar = Some(search_bar);
         self
     }
 
-    // Builder method to set the selected search index
     pub fn selected_search_index(mut self, selected_search_index: usize) -> Self {
         self.selected_search_index = Some(selected_search_index);
         self
     }
 
-    // Builder method to set the playlist
+    pub fn selected_playlist_song_index(mut self, selected_playlist_song_index: usize) -> Self {
+        self.selected_playlist_song_index = selected_playlist_song_index;
+        self
+    }
+
     pub fn playlist(mut self, playlist: Playlist) -> Self {
         self.playlist = Some(playlist);
         self
     }
 
-    // Builder method to set the queue
     pub fn queue(mut self, queue: Queue) -> Self {
         self.queue = Some(queue);
         self
     }
 
-    // Builder method to set the playback section
     pub fn playback(mut self, playback: Playback) -> Self {
         self.playback = Some(playback);
         self
     }
 
-    // Builder method to set the search results
     pub fn search_results(mut self, search_results: Option<Vec<Video>>) -> Self {
         self.search_results = search_results;
         self
     }
 
-    // Builder method to set the selected pane
     pub fn selected_pane(mut self, selected_pane: &'a Pane) -> Self {
         self.selected_pane = Some(selected_pane);
         self
     }
 
-    // Builder method to set the notification
     pub fn notification(mut self, notification: Option<&'a Notification>) -> Self {
         self.notification = notification;
         self
     }
 
-    // Build the layout with the provided components
     pub fn build<B: Backend>(self, f: &mut Frame<B>) {
-        // Split the screen into two vertical halves
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()) // Left and right halves
             .split(self.frame.unwrap());
 
-        // Split the left side into search bar and playlist
         let left_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref()) // Top: Search Bar, Bottom: Playlist
             .split(main_chunks[0]);
 
-        // Split the right side into queue and playback
         let right_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref()) // Top: Queue, Bottom: Playback
             .split(main_chunks[1]);
 
-        // Render the Search Bar (top left, half the screen width)
         if let Some(search_bar) = self.search_bar {
             let style = if matches!(self.selected_pane, Some(Pane::SearchBar)) {
                 Style::default().fg(Color::Yellow)
@@ -119,17 +112,15 @@ impl<'a> LayoutBuilder<'a> {
             search_bar.render_with_style(f, left_chunks[0], style);
         }
 
-        // Render the Playlist (below the search bar, taking the rest of the left side)
         if let Some(playlist) = self.playlist {
             let style = if matches!(self.selected_pane, Some(Pane::Playlist)) {
                 Style::default().fg(Color::Green) // Playlist items will have a different color
             } else {
                 Style::default()
             };
-            playlist.render_with_style(f, left_chunks[1], style);
+            playlist.render_with_style(f, left_chunks[1], style, self.selected_playlist_song_index);
         }
 
-        // Render the Queue (top right, half the screen width)
         if let Some(queue) = self.queue {
             let style = if matches!(self.selected_pane, Some(Pane::Queue)) {
                 Style::default().fg(Color::Yellow)
@@ -139,7 +130,6 @@ impl<'a> LayoutBuilder<'a> {
             queue.render_with_style(f, right_chunks[0], style);
         }
 
-        // Render the Playback section (bottom right, below the queue)
         if let Some(playback) = self.playback {
             let style = if matches!(self.selected_pane, Some(Pane::Playback)) {
                 Style::default().fg(Color::Cyan) // Playback has its own color
@@ -149,7 +139,6 @@ impl<'a> LayoutBuilder<'a> {
             playback.render_with_style(f, right_chunks[1], style);
         }
 
-        // Render the Search Results as a Floating Overlay (move it down and add background color)
         if let Some(search_results) = &self.search_results {
             let search_overlay = Rect {
                 x: 2,                                   // Padding from the left edge
@@ -179,7 +168,6 @@ impl<'a> LayoutBuilder<'a> {
                     .style(Style::default().bg(Color::Black)), // Set background to black for better visibility
             );
 
-            // Render the search result overlay on the top of the TUI
             f.render_widget(search_result_list, search_overlay);
         }
     }
