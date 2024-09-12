@@ -1,10 +1,11 @@
 use tui::backend::Backend;
 use tui::layout::Rect;
-use tui::style::{Color, Style};
+use tui::style::Style;
 use tui::widgets::{Block, Borders, Row, Table};
 use tui::Frame;
 
 use crate::models::song::Song;
+use crate::tui::ui::color_theme::ColorTheme;
 use crate::utils::format::format_duration;
 
 #[derive(Clone)]
@@ -17,14 +18,19 @@ impl Queue {
         Queue { songs }
     }
 
+    pub fn add_song(&mut self, song: Song) {
+        self.songs.push(song);
+    }
+
     pub fn render_with_style<B: Backend>(
         &self,
         f: &mut Frame<B>,
         area: Rect,
         style: Style,
-        selected_index: Option<usize>,
-        theme: &ColorTheme,
+        selected_index: usize,
     ) {
+        let theme = ColorTheme::catppuccin_mocha();
+
         // Create rows for each song
         let rows: Vec<Row> = self
             .songs
@@ -39,7 +45,7 @@ impl Queue {
                     .to_string(); // Remove ".mp3" suffix if present
                 let duration = format_duration(song.duration); // Format the duration
 
-                Row::new(vec![order, title, duration]).style(if Some(i) == selected_index {
+                Row::new(vec![order, title, duration]).style(if i == selected_index {
                     Style::default().fg(theme.highlight) // Highlight the selected row
                 } else {
                     Style::default().fg(theme.text) // Default text color for other rows
@@ -48,7 +54,7 @@ impl Queue {
             .collect();
 
         let table = Table::new(rows)
-            .block(Block::default().borders(Borders::ALL).title("Queue")) // Set a title and borders
+            .block(Block::default().borders(Borders::ALL).title("Queue [2]")) // Set a title and borders
             .style(style) // Apply the passed-in style
             .widths(&[
                 tui::layout::Constraint::Percentage(10), // Order

@@ -5,7 +5,7 @@ use crate::tui::ui::notification::Notification;
 use crate::tui::ui::{playback::Playback, playlist::Playlist, queue::Queue, search_bar::SearchBar};
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Style};
+use tui::style::Style;
 use tui::widgets::{Block, Borders, List, ListItem};
 use tui::Frame;
 
@@ -21,6 +21,7 @@ pub struct LayoutBuilder<'a> {
     selected_playlist_song_index: usize,
     notification: Option<&'a Notification>,
     downloading_video_index: Option<usize>,
+    selected_queue_song_index: usize,
     theme: ColorTheme,
 }
 
@@ -37,6 +38,7 @@ impl<'a> LayoutBuilder<'a> {
             selected_search_index: None,
             selected_playlist_song_index: 0,
             downloading_video_index: None,
+            selected_queue_song_index: 0,
             notification: None,
             theme: ColorTheme::catppuccin_mocha(),
         }
@@ -59,6 +61,11 @@ impl<'a> LayoutBuilder<'a> {
 
     pub fn selected_playlist_song_index(mut self, selected_playlist_song_index: usize) -> Self {
         self.selected_playlist_song_index = selected_playlist_song_index;
+        self
+    }
+
+    pub fn selected_queue_song_index(mut self, selected_queue_song_index: usize) -> Self {
+        self.selected_queue_song_index = selected_queue_song_index;
         self
     }
 
@@ -137,7 +144,7 @@ impl<'a> LayoutBuilder<'a> {
             } else {
                 Style::default().fg(self.theme.text)
             };
-            queue.render_with_style(f, right_chunks[0], style);
+            queue.render_with_style(f, right_chunks[0], style, self.selected_queue_song_index);
         }
 
         if let Some(playback) = self.playback {

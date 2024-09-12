@@ -40,6 +40,7 @@ pub struct App {
     notification: Option<Notification>,
     notification_timeout: Duration,
     downloading_video_index: Option<usize>,
+    selected_queue_song_index: usize,
 }
 
 impl App {
@@ -59,6 +60,7 @@ impl App {
             notification: None,
             notification_timeout: Duration::from_secs(5),
             downloading_video_index: None,
+            selected_queue_song_index: 0,
         }
     }
 
@@ -111,6 +113,7 @@ impl App {
                         .selected_playlist_song_index(app_locked.selected_playlist_song_index)
                         .downloading_video_index(app_locked.downloading_video_index)
                         .notification(app_locked.notification.as_ref())
+                        .selected_queue_song_index(app_locked.selected_queue_song_index)
                         .build(f);
                 })?;
             }
@@ -313,17 +316,28 @@ impl App {
                                 < app_locked.playlist.songs.len()
                             {
                                 let _index = app_locked.selected_playlist_song_index;
+                                let _song = app_locked.playlist.songs[_index].clone();
 
-                                app_locked.playlist.remove_song(_index);
+                                app_locked.queue.add_song(_song);
+                            }
+                        }
 
-                                if app_locked.playlist.songs.is_empty() {
-                                    app_locked.selected_playlist_song_index = 0;
-                                } else if app_locked.selected_playlist_song_index
-                                    >= app_locked.playlist.songs.len()
-                                {
-                                    app_locked.selected_playlist_song_index =
-                                        app_locked.playlist.songs.len() - 1;
-                                }
+                        // Queue Controls
+                        KeyCode::Char('j')
+                            if matches!(app.lock().await.selected_pane, Pane::Queue) =>
+                        {
+                            let mut app_locked = app_clone.lock().await;
+                            let queue_len = app_locked.queue.songs.len();
+                            app_locked.selected_queue_song_index =
+                                (app_locked.selected_queue_song_index + 1).min(queue_len - 1);
+                        }
+
+                        KeyCode::Char('k')
+                            if matches!(app.lock().await.selected_pane, Pane::Queue) =>
+                        {
+                            let mut app_locked = app_clone.lock().await;
+                            if app_locked.selected_queue_song_index > 0 {
+                                app_locked.selected_queue_song_index -= 1;
                             }
                         }
                         _ => {}
