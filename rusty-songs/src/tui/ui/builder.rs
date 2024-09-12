@@ -19,6 +19,7 @@ pub struct LayoutBuilder<'a> {
     selected_search_index: Option<usize>,
     selected_playlist_song_index: usize, // Add selected playlist song index
     notification: Option<&'a Notification>, // Add notification field
+    downloading_video_index: Option<usize>,
 }
 
 impl<'a> LayoutBuilder<'a> {
@@ -33,6 +34,7 @@ impl<'a> LayoutBuilder<'a> {
             selected_pane: None,
             selected_search_index: None,
             selected_playlist_song_index: 0,
+            downloading_video_index: None,
             notification: None,
         }
     }
@@ -77,6 +79,11 @@ impl<'a> LayoutBuilder<'a> {
         self
     }
 
+    pub fn downloading_video_index(mut self, index: Option<usize>) -> Self {
+        self.downloading_video_index = index;
+        self
+    }
+
     pub fn selected_pane(mut self, selected_pane: &'a Pane) -> Self {
         self.selected_pane = Some(selected_pane);
         self
@@ -112,7 +119,7 @@ impl<'a> LayoutBuilder<'a> {
             search_bar.render_with_style(f, left_chunks[0], style);
         }
 
-        if let Some(playlist) = self.playlist {
+        if let Some(playlist) = self.playlist.as_ref() {
             let style = if matches!(self.selected_pane, Some(Pane::Playlist)) {
                 Style::default().fg(Color::Green) // Playlist items will have a different color
             } else {
@@ -147,12 +154,39 @@ impl<'a> LayoutBuilder<'a> {
                 height: self.frame.unwrap().height / 4, // Take 1/4 of the screen height
             };
 
+            // Borrow `self.playlist` once
+            let playlist_ref = self.playlist.as_ref();
+
             let items: Vec<ListItem> = search_results
                 .iter()
                 .enumerate()
                 .map(|(i, video)| {
-                    let content =
-                        format!("{} - {}", video.snippet.title, video.snippet.channel_title);
+                    // Check if the video is already downloaded by referencing the borrowed playlist
+                    let already_downloaded = if let Some(playlist) = playlist_ref {
+                        playlist.songs.iter().any(|song| {
+                            song.title.ends_with(".mp3")
+                                && song.title == format!("{}.mp3", video.snippet.title)
+                        })
+                    } else {
+                        false // If playlist is None, assume the video hasn't been downloaded
+                    };
+
+                    // Determine which symbol to show
+                    let download_status_symbol = if already_downloaded {
+                        "✅" // Green checkmark for already downloaded
+                    } else if Some(i) == self.downloading_video_index {
+                        "⏳" // Spinning wheel for currently downloading
+                    } else {
+                        "⚠️" // Yellow warning symbol for not downloaded yet
+                    };
+
+                    // Format the content for each search result item
+                    let content = format!(
+                        "{} - {} {}",
+                        video.snippet.title, video.snippet.channel_title, download_status_symbol
+                    );
+
+                    // Highlight the selected search result
                     if Some(i) == self.selected_search_index {
                         ListItem::new(content).style(Style::default().fg(Color::Yellow))
                     } else {
@@ -161,6 +195,7 @@ impl<'a> LayoutBuilder<'a> {
                 })
                 .collect();
 
+            // Create the search result list with a border and render it
             let search_result_list = List::new(items).block(
                 Block::default()
                     .borders(Borders::ALL)

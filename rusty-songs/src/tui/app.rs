@@ -39,6 +39,7 @@ pub struct App {
     selected_playlist_song_index: usize,
     notification: Option<Notification>,
     notification_timeout: Duration,
+    downloading_video_index: Option<usize>,
 }
 
 impl App {
@@ -78,6 +79,7 @@ impl App {
             selected_playlist_song_index: 0,
             notification: None,
             notification_timeout: Duration::from_secs(5),
+            downloading_video_index: None,
         }
     }
 
@@ -106,17 +108,14 @@ impl App {
             execute!(&stdout, Clear(ClearType::All))?;
         }
 
-        // Initialize terminal backend
         let backend = CrosstermBackend::new(io::stdout());
         let mut terminal = Terminal::new(backend)?;
 
         loop {
             {
-                // Lock app once for rendering logic only
                 let mut app_locked = app.lock().await;
                 app_locked.check_notification_timeout();
 
-                // Load playlist
                 app_locked.playlist.load_playlist();
 
                 terminal.draw(|f| {
@@ -131,6 +130,7 @@ impl App {
                         .search_results(app_locked.search_results.clone())
                         .selected_search_index(app_locked.selected_search_index)
                         .selected_playlist_song_index(app_locked.selected_playlist_song_index)
+                        .downloading_video_index(app_locked.downloading_video_index)
                         .notification(app_locked.notification.as_ref())
                         .build(f);
                 })?;
@@ -141,7 +141,6 @@ impl App {
                 if let Event::Key(key) = event::read()? {
                     let app_clone = Arc::clone(&app); // Clone app before async task
 
-                    // Handling events in an async block
                     match key.code {
                         KeyCode::Char('0') => {
                             let mut app_locked = app_clone.lock().await;
@@ -235,9 +234,16 @@ impl App {
                                 if let Some(video_id) = video.id.video_id {
                                     let app_clone_inner = Arc::clone(&app); // Clone app for async task
 
+                                    let selected_index = app.lock().await.selected_search_index; // Get selected index
+                                    {
+                                        let mut app_locked = app.lock().await;
+                                        app_locked.downloading_video_index = Some(selected_index);
+                                    }
+
                                     // Async task for downloading video and converting to MP3
                                     tokio::spawn(async move {
                                         let mut app_locked = app_clone_inner.lock().await;
+
                                         match app_locked
                                             .youtube_service
                                             .process_video_to_audio(&video_id, &video.snippet.title) // Pass video_id as &str
@@ -262,9 +268,10 @@ impl App {
                                                 );
                                             }
                                         }
+
+                                        app_locked.downloading_video_index = None;
                                     });
                                 } else {
-                                    // Handle the case where video_id is None
                                     let mut app_locked = app_clone.lock().await;
                                     app_locked.set_notification(
                                         "Failed to process video: Video ID is missing.".to_string(),
