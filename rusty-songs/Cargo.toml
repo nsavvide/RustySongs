@@ -24,3 +24,4 @@ tui = "0.19"
 crossterm = "0.28.1"
 dotenv = "0.15" 
 symphonia = { version = "0.5", features = ["mp3"] }
+rodio = "0.19"

@@ -1,3 +1,4 @@
+use tokio::sync::watch;
 use tui::backend::Backend;
 use tui::layout::Rect;
 use tui::style::Style;
@@ -11,15 +12,21 @@ use crate::utils::format::format_duration;
 #[derive(Clone)]
 pub struct Queue {
     pub songs: Vec<Song>,
+    pub sender: watch::Sender<Vec<Song>>,
 }
 
 impl Queue {
     pub fn new(songs: Vec<Song>) -> Self {
-        Queue { songs }
+        let (sender, _receiver) = watch::channel(vec![]);
+        Queue {
+            songs: vec![],
+            sender,
+        }
     }
 
     pub fn add_song(&mut self, song: Song) {
         self.songs.push(song);
+        let _ = self.sender.send(self.songs.clone());
     }
 
     pub fn render_with_style<B: Backend>(

@@ -107,28 +107,32 @@ impl<'a> LayoutBuilder<'a> {
     pub fn build<B: Backend>(self, f: &mut Frame<B>) {
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()) // Left and right halves
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()) // 50% Left and 50% Right
             .split(self.frame.unwrap());
 
+        // Left side: Search Bar and Playlist
         let left_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref()) // Top: Search Bar, Bottom: Playlist
+            .constraints([Constraint::Percentage(15), Constraint::Percentage(85)].as_ref()) // 15% for Search Bar, 85% for Playlist
             .split(main_chunks[0]);
 
+        // Right side: Queue and Playback
         let right_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref()) // Top: Queue, Bottom: Playback
+            .constraints([Constraint::Percentage(65), Constraint::Percentage(35)].as_ref()) // 65% for Queue, 35% for Playback
             .split(main_chunks[1]);
 
+        // Render Search Bar
         if let Some(search_bar) = self.search_bar {
             let style = if matches!(self.selected_pane, Some(Pane::SearchBar)) {
                 Style::default().fg(self.theme.accent2)
             } else {
                 Style::default().fg(self.theme.text)
             };
-            search_bar.render_with_style(f, left_chunks[0], style);
+            search_bar.render_with_style(f, left_chunks[0], style); // Render in top 15% of left_chunks
         }
 
+        // Render Playlist
         if let Some(playlist) = self.playlist.as_ref() {
             let style = if matches!(self.selected_pane, Some(Pane::Playlist)) {
                 Style::default().fg(self.theme.accent1)
@@ -136,8 +140,10 @@ impl<'a> LayoutBuilder<'a> {
                 Style::default().fg(self.theme.text)
             };
             playlist.render_with_style(f, left_chunks[1], style, self.selected_playlist_song_index);
+            // Render in bottom 85% of left_chunks
         }
 
+        // Render Queue
         if let Some(queue) = self.queue {
             let style = if matches!(self.selected_pane, Some(Pane::Queue)) {
                 Style::default().fg(self.theme.accent2)
@@ -145,17 +151,20 @@ impl<'a> LayoutBuilder<'a> {
                 Style::default().fg(self.theme.text)
             };
             queue.render_with_style(f, right_chunks[0], style, self.selected_queue_song_index);
+            // Render in top 65% of right_chunks
         }
 
+        // Render Playback
         if let Some(playback) = self.playback {
             let style = if matches!(self.selected_pane, Some(Pane::Playback)) {
-                Style::default().fg(self.theme.accent2) // Playback has its own color
+                Style::default().fg(self.theme.accent2) // Playback color
             } else {
                 Style::default().fg(self.theme.text)
             };
-            playback.render_with_style(f, right_chunks[1], style);
+            playback.render_with_style(f, right_chunks[1], style); // Render in bottom 35% of right_chunks
         }
 
+        // Render Search Results Overlay
         if let Some(search_results) = &self.search_results {
             let search_overlay = Rect {
                 x: 2,                                   // Padding from the left edge
@@ -164,14 +173,12 @@ impl<'a> LayoutBuilder<'a> {
                 height: self.frame.unwrap().height / 4, // Take 1/4 of the screen height
             };
 
-            // Borrow `self.playlist` once
             let playlist_ref = self.playlist.as_ref();
 
             let items: Vec<ListItem> = search_results
                 .iter()
                 .enumerate()
                 .map(|(i, video)| {
-                    // Check if the video is already downloaded by referencing the borrowed playlist
                     let already_downloaded = if let Some(playlist) = playlist_ref {
                         playlist.songs.iter().any(|song| {
                             song.title.ends_with(".mp3")
@@ -181,22 +188,19 @@ impl<'a> LayoutBuilder<'a> {
                         false // If playlist is None, assume the video hasn't been downloaded
                     };
 
-                    // Determine which symbol to show
                     let download_status_symbol = if already_downloaded {
-                        "✅" // Green checkmark for already downloaded
+                        "✅"
                     } else if Some(i) == self.downloading_video_index {
-                        "⏳" // Spinning wheel for currently downloading
+                        "⏳"
                     } else {
-                        "⚠️" // Yellow warning symbol for not downloaded yet
+                        "⚠️"
                     };
 
-                    // Format the content for each search result item
                     let content = format!(
                         "{} - {} {}",
                         video.snippet.title, video.snippet.channel_title, download_status_symbol
                     );
 
-                    // Highlight the selected search result
                     if Some(i) == self.selected_search_index {
                         ListItem::new(content).style(Style::default().fg(self.theme.accent2))
                     } else {

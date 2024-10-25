@@ -1,4 +1,8 @@
+use crate::models::playback::playback_command::PlaybackCommand;
+use crate::models::playback::playback_info::PlaybackInfo;
+use crate::models::playback::playback_state::PlaybackState;
 use crate::models::video::Video;
+use crate::services::playback::playback_service::PlaybackService;
 use crate::services::youtube::youtube_service::YoutubeService;
 use crate::tui::ui::builder::LayoutBuilder;
 use crate::tui::ui::notification::{Notification, NotificationType};
@@ -13,6 +17,7 @@ use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use tokio::sync::{mpsc, watch};
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
@@ -41,6 +46,8 @@ pub struct App {
     notification_timeout: Duration,
     downloading_video_index: Option<usize>,
     selected_queue_song_index: usize,
+    playback_command_sender: Option<mpsc::Sender<PlaybackCommand>>,
+    playback_state_receiver: Option<watch::Receiver<PlaybackInfo>>,
 }
 
 impl App {
@@ -51,8 +58,8 @@ impl App {
             queue: Queue::new(vec![]),
             youtube_service: YoutubeService::new(),
             search_results: None,
-            playback: Playback::new("Song 1", 100, 300),
-            selected_pane: Pane::SearchBar, // Default to the search bar
+            playback: Playback::new(),
+            selected_pane: Pane::SearchBar,
 
             selected_video: None,
             selected_search_index: 0,
@@ -61,6 +68,8 @@ impl App {
             notification_timeout: Duration::from_secs(5),
             downloading_video_index: None,
             selected_queue_song_index: 0,
+            playback_command_sender: None,
+            playback_state_receiver: None,
         }
     }
 
@@ -89,6 +98,51 @@ impl App {
             execute!(&stdout, Clear(ClearType::All))?;
         }
 
+        {
+            let mut app_locked = app.lock().await;
+
+            // Create the queue receiver
+            let queue_receiver = app_locked.queue.sender.subscribe();
+
+            // Create the playback command channel
+            let (playback_command_sender, playback_command_receiver) = mpsc::channel(100);
+
+            // Create the playback state channel
+            let (playback_state_sender, playback_state_receiver) = watch::channel(PlaybackInfo {
+                state: PlaybackState::Stopped,
+                current_song: None,
+                current_time: 0,
+                total_time: 0,
+            });
+
+            // Set the music directory (update with your actual path)
+            let music_dir = std::env::var("MUSIC_DIR").unwrap_or_else(|_| "music".to_string());
+
+            // Create and start the playback service
+            let playback_service = PlaybackService::new(
+                queue_receiver,
+                playback_command_sender,
+                playback_command_receiver,
+                playback_state_sender,
+                music_dir,
+            );
+
+            std::thread::spawn(move || {
+                // Create a new runtime for this thread
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+
+                // Run the playback service in this runtime
+                rt.block_on(playback_service.run());
+            });
+
+            // Store the playback command sender and playback state receiver in the app
+            app_locked.playback_command_sender = Some(playback_command_sender);
+            app_locked.playback_state_receiver = Some(playback_state_receiver);
+        }
+
         let backend = CrosstermBackend::new(io::stdout());
         let mut terminal = Terminal::new(backend)?;
 
@@ -96,6 +150,22 @@ impl App {
             {
                 let mut app_locked = app.lock().await;
                 app_locked.check_notification_timeout();
+
+                // Update the playback state
+                if let Some(ref mut playback_state_receiver) = app_locked.playback_state_receiver {
+                    if playback_state_receiver.has_changed().unwrap_or(false) {
+                        let playback_info = playback_state_receiver.borrow().clone();
+                        app_locked.playback.update_state(playback_info);
+                    }
+                }
+
+                // Todo: If playing, increment current time (simulate playback progress)
+                if app_locked.playback.state == PlaybackState::Playing {
+                    app_locked.playback.current_time += 1; // Increment by 1 second or appropriate value
+                    if app_locked.playback.current_time >= app_locked.playback.total_time {
+                        app_locked.playback.current_time = app_locked.playback.total_time;
+                    }
+                }
 
                 app_locked.playlist.load_playlist();
 
@@ -144,7 +214,9 @@ impl App {
                             app_locked.selected_pane = Pane::Playback;
                             app_locked.search_results = None; // Clear search results when moving away
                         }
-                        KeyCode::Char('q') => {
+                        KeyCode::Char('q')
+                            if !matches!(app.lock().await.selected_pane, Pane::SearchBar) =>
+                        {
                             disable_raw_mode().unwrap();
                             std::process::exit(0);
                         }
@@ -338,6 +410,60 @@ impl App {
                             let mut app_locked = app_clone.lock().await;
                             if app_locked.selected_queue_song_index > 0 {
                                 app_locked.selected_queue_song_index -= 1;
+                            }
+                        }
+
+                        // Playback Controls
+                        KeyCode::Char('p')
+                            if !matches!(app.lock().await.selected_pane, Pane::SearchBar)
+                                && !matches!(
+                                    app.lock().await.selected_pane,
+                                    Pane::SearchResults
+                                ) =>
+                        {
+                            if let Some(sender) = app.lock().await.playback_command_sender.clone() {
+                                tokio::spawn(async move {
+                                    let _ = sender.send(PlaybackCommand::Play).await;
+                                });
+                            }
+                        }
+                        KeyCode::Char('s')
+                            if !matches!(app.lock().await.selected_pane, Pane::SearchBar)
+                                && !matches!(
+                                    app.lock().await.selected_pane,
+                                    Pane::SearchResults
+                                ) =>
+                        {
+                            if let Some(sender) = app.lock().await.playback_command_sender.clone() {
+                                tokio::spawn(async move {
+                                    let _ = sender.send(PlaybackCommand::Pause).await;
+                                });
+                            }
+                        }
+                        KeyCode::Char('n')
+                            if !matches!(app.lock().await.selected_pane, Pane::SearchBar)
+                                && !matches!(
+                                    app.lock().await.selected_pane,
+                                    Pane::SearchResults
+                                ) =>
+                        {
+                            if let Some(sender) = app.lock().await.playback_command_sender.clone() {
+                                tokio::spawn(async move {
+                                    let _ = sender.send(PlaybackCommand::Next).await;
+                                });
+                            }
+                        }
+                        KeyCode::Char('b')
+                            if !matches!(app.lock().await.selected_pane, Pane::SearchBar)
+                                && !matches!(
+                                    app.lock().await.selected_pane,
+                                    Pane::SearchResults
+                                ) =>
+                        {
+                            if let Some(sender) = app.lock().await.playback_command_sender.clone() {
+                                tokio::spawn(async move {
+                                    let _ = sender.send(PlaybackCommand::Previous).await;
+                                });
                             }
                         }
                         _ => {}
